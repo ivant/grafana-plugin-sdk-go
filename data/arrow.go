@@ -778,6 +778,29 @@ func FromArrowRecord(record arrow.Record) (*Frame, error) {
 	return frame, nil
 }
 
+func FromArrowTable(table arrow.Table) (*Frame, error) {
+	schema := table.Schema()
+	frame := &Frame{}
+	if err := populateFrameFromSchema(schema, frame); err != nil {
+		return nil, err
+	}
+
+	nullable, err := initializeFrameFields(schema, frame)
+	if err != nil {
+		return nil, err
+	}
+
+	reader := array.NewTableReader(table, 0)
+	defer reader.Release()
+	for reader.Next() {
+		record := reader.Record()
+		if err = populateFrameFieldsFromRecord(record, nullable, frame); err != nil {
+			return nil, err
+		}
+	}
+	return frame, nil
+}
+
 // UnmarshalArrowFrame converts a byte representation of an arrow table to a Frame.
 func UnmarshalArrowFrame(b []byte) (*Frame, error) {
 	fB := filebuffer.New(b)
